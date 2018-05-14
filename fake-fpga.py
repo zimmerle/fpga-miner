@@ -1,60 +1,106 @@
-#!env python
+#!/usr/bin/env python
 
-import struct
-import codecs
+
 from hashlib import sha256
+import codecs
+import getopt
 import serial
+import struct
+import sys
 
-def start(payload, nonce):
+
+def start(payload, nonce, dificult):
     if payload == None:
         return -1
     if nonce == None:
         nonce = 0
     else:
-        print(str(len(nonce)))
-        print(str(nonce))
-        nonce = struct.unpack("i", nonce)
+        nonce = struct.unpack("i", nonce)[0]
 
-    print(str(payload))
-    print(str(nonce))
-    
-def aoeuaoeu():
-    i = 2080000000
-    ii = i
-    #i = 2083236893
-    found = False
-    j = 0
-    while found == False:
+    print("Payload:  " + str(payload))
+    print("Nonce:    " + str(nonce))
+    print("Dificult: " + str(dificult))
+
+    i = nonce
+    while True:
         # 2083236893
         nonce = struct.pack("i", i)
-        hash = sha256(sha256(a + nonce).digest()).digest()[::-1]
+        hash = sha256(sha256(payload + nonce).digest()).digest()[::-1]
 
         if hash < dificult:
-            print("bingo! " + str(i - ii))
-            found = True
-        i = i + 1    
+            return i
+        i = i + 1
+        print(str(i))
+    return None
 
-ser = serial.Serial('/dev/pts/7', 9600, rtscts=True,dsrdtr=True)
 
-payload = None
-nonce = None
+def main():
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "hvn:t:", ["help"])
+    except getopt.GetoptError as err:
+        print(err)
+        usage()
+        sys.exit(2)
 
-run = True
-while run == True:
-    line = ser.readline()
+    verbose = False
+    nonce = -1
+    tty = None
+
+    for o, a in opts:
+        if o == "-v":
+            verbose = True
+        elif o in ("-h", "--help"):
+            usage()
+            sys.exit()
+        elif o in ("-n", "--nonce"):
+            nonce = int(a)
+        elif o in ("-t", "--tty"):
+            tty = str(a)
+        else:
+            assert False, "unhandled option"
+
+
+    if nonce == -1:
+        nonce = 2080000000
+
+    if tty == None:
+        tty = '/dev/pts/6'
     
-    if len(line) == 0:
-        continue
+    ser = serial.Serial(tty, 9600, rtscts=True, dsrdtr=True)
+
+    payload = None
+    dificult = None
+
+    while True:
+        line = ser.readline()
     
-    if chr(line[0]) == "p":
-        payload = line[2:]
-    elif chr(line[0]) == "n":
-        nonce = line[2:]
-    elif chr(line[0]) == ">":
-        start(payload, nonce)
-        ser.write("Done: 123")
-    elif chr(line[0]) == "!":
-        pass
-    else:
-        print("*** Ops: " + str(chr(line[0])))
-        print("*** " + str(line))
+        if len(line) == 0:
+            continue
+
+        if chr(line[0]) == "p":
+            payload = line[2:-1]
+            #ser.write("payload loaded.")
+        elif chr(line[0]) == "n":
+            nonce = line[1:-1]
+        elif chr(line[0]) == "d":
+            dificult = line[1:-1]
+            #ser.write("nonce loaded.")
+        elif chr(line[0]) == ">":
+            nonce = start(payload, nonce, dificult)
+            if nonce != None:
+                #o = codecs.decode(nonce, 'hex')
+                ser.write(bytearray("done: ", "utf-8"))
+                ser.write(bytearray(str(nonce), "utf-8"))
+                ser.write(bytearray("\n", "utf-8"))
+            else:
+                ser.write(bytearray("failed"), "utf-8")
+        elif chr(line[0]) == "!":
+            pass
+        else:
+            print("*** Ops: " + str(chr(line[0])))
+            print("*** " + str(line))
+
+
+if __name__ == "__main__":
+    main()
+
