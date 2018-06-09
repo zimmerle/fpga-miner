@@ -9,7 +9,7 @@ import struct
 import sys
 
 
-def start(payload, nonce, dificult):
+def start(payload, nonce, ts, dificult):
     if payload == None:
         return -1
     if nonce == None:
@@ -17,9 +17,12 @@ def start(payload, nonce, dificult):
     else:
         nonce = struct.unpack("i", nonce)[0]
 
-    print("Payload:  " + str(payload))
-    print("Nonce:    " + str(nonce))
-    print("Dificult: " + str(dificult))
+    print("Starting a new job...")
+    print("Payload  :  " + str(payload))
+    print("Nonce    :    " + str(nonce))
+    print("TS       : " + str(ts))
+    print("Dificult : " + str(dificult))
+
 
     i = nonce
     while True:
